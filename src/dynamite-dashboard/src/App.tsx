@@ -15,7 +15,6 @@ const LoggingPage = lazy(() => import('@/pages/Dashboard/Logging'))
 const WelcomePage = lazy(() => import('@/pages/Dashboard/Welcome'))
 const SecurityPage = lazy(() => import('@/pages/Dashboard/Security'))
 const SetupPage = lazy(() => import('@/pages/Dashboard/Setup'))
-const EconomyPage = lazy(() => import('@/pages/Dashboard/Economy'))
 const CommandsPage = lazy(() => import('@/pages/Dashboard/Commands'))
 const BlacklistPage = lazy(() => import('@/pages/Dashboard/Blacklist'))
 const LandingPage = lazy(() => import('@/pages/Landing'))
@@ -25,7 +24,6 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       staleTime: 0,
-      refetchInterval: 2500, // Real-time polling every 2.5s to keep Web and DB tightly synced
       refetchOnWindowFocus: true,
       refetchOnMount: true,
     },
@@ -62,7 +60,6 @@ export default function App() {
                 <Route path="commands" element={<CommandsPage />} />
                 <Route path="blacklist" element={<BlacklistPage />} />
                 <Route path="setup" element={<SetupPage />} />
-                <Route path="economy" element={<EconomyPage />} />
                 <Route path="moderation" element={<ModerationPage />} />
                 <Route path="logging" element={<LoggingPage />} />
                 <Route path="welcome" element={<WelcomePage />} />

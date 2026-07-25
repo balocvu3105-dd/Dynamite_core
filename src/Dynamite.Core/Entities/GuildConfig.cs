@@ -82,4 +82,7 @@ public class GuildConfig : BaseEntity
     // Fishing notification role
     /// <summary>Role được mention khi thời tiết bể cá thay đổi (vd: role Ngư Dân).</summary>
     public ulong? FishingRoleId { get; set; }
+    
+    // Tracking module crashes/faults
+    public ICollection<ModuleFault> ModuleFaults { get; set; } = [];
 }

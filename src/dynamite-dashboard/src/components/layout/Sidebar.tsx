@@ -26,7 +26,6 @@ export function Sidebar() {
         { label: lang === 'vi' ? 'Danh sách Lệnh' : 'Commands List', icon: Terminal, path: 'commands' },
         { label: lang === 'vi' ? 'Danh sách Cấm/Bỏ qua' : 'Blacklist & Ignore', icon: Ban, path: 'blacklist' },
         { label: lang === 'vi' ? 'Chuyên gia Thiết lập' : 'Server Setup', icon: Wand2, path: 'setup' },
-        { label: lang === 'vi' ? 'Kinh tế & Câu cá' : 'Economy & Fishing', icon: Coins, path: 'economy' },
         { label: lang === 'vi' ? 'Quản trị viên' : 'Moderation', icon: Shield, path: 'moderation' },
         { label: lang === 'vi' ? 'Nhật ký Hoạt động' : 'Logging', icon: FileText, path: 'logging' },
         { label: lang === 'vi' ? 'Lời chào mừng' : 'Welcome', icon: MessageSquare, path: 'welcome' },

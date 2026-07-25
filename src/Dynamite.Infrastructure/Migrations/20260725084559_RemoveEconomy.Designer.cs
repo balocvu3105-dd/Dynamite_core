@@ -3,6 +3,7 @@ using System;
 using Dynamite.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Dynamite.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260725084559_RemoveEconomy")]
+    partial class RemoveEconomy
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -443,41 +446,6 @@ namespace Dynamite.Infrastructure.Migrations
                     b.HasIndex("GuildId", "TargetUserId");
 
                     b.ToTable("ModerationActions");
-                });
-
-            modelBuilder.Entity("Dynamite.Core.Entities.ModuleFault", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("FaultedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("GuildConfigId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ModuleName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GuildConfigId");
-
-                    b.ToTable("ModuleFaults");
                 });
 
             modelBuilder.Entity("Dynamite.Core.Entities.RefreshToken", b =>
@@ -972,17 +940,6 @@ namespace Dynamite.Infrastructure.Migrations
                     b.Navigation("GuildConfig");
                 });
 
-            modelBuilder.Entity("Dynamite.Core.Entities.ModuleFault", b =>
-                {
-                    b.HasOne("Dynamite.Core.Entities.GuildConfig", "GuildConfig")
-                        .WithMany("ModuleFaults")
-                        .HasForeignKey("GuildConfigId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("GuildConfig");
-                });
-
             modelBuilder.Entity("Dynamite.Core.Entities.RolePanel", b =>
                 {
                     b.HasOne("Dynamite.Core.Entities.GuildConfig", "GuildConfig")
@@ -1063,8 +1020,6 @@ namespace Dynamite.Infrastructure.Migrations
                     b.Navigation("Blacklist");
 
                     b.Navigation("ModerationActions");
-
-                    b.Navigation("ModuleFaults");
 
                     b.Navigation("RolePanels");
 

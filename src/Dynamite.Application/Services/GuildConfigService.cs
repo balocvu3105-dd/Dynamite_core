@@ -8,13 +8,16 @@ using Microsoft.Extensions.Logging;
 public class GuildConfigService : IGuildConfigService
 {
     private readonly IGuildConfigRepository _guildConfigRepo;
+    private readonly ISyncNotifier _syncNotifier;
     private readonly ILogger<GuildConfigService> _logger;
 
     public GuildConfigService(
         IGuildConfigRepository guildConfigRepo,
+        ISyncNotifier syncNotifier,
         ILogger<GuildConfigService> logger)
     {
         _guildConfigRepo = guildConfigRepo;
+        _syncNotifier = syncNotifier;
         _logger = logger;
     }
 
@@ -31,6 +34,16 @@ public class GuildConfigService : IGuildConfigService
         config.UpdatedAt = DateTime.UtcNow;
         await _guildConfigRepo.UpdateAsync(config, ct);
         await _guildConfigRepo.SaveChangesAsync(ct);
+        
+        // Notify SignalR clients that this guild's config was updated
+        try
+        {
+            await _syncNotifier.NotifyConfigUpdatedAsync(config.GuildId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to broadcast config update for guild {GuildId}", config.GuildId);
+        }
     }
 
     // Fix: accept guildName so GetOrCreateAsync stores the real name,

@@ -10,6 +10,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IGuildConfigService, GuildConfigService>();
+        services.AddSingleton<CircuitBreakerService>();
         services.AddScoped<IModerationService, ModerationService>();
         services.AddScoped<IServerLogService, ServerLogService>();
         services.AddScoped<IWelcomeService, WelcomeService>();

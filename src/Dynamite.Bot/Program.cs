@@ -25,9 +25,6 @@ using Dynamite.Modules.Ticket.Interactions;
 using Dynamite.Modules.Ticket.Services;
 using Dynamite.Modules.Welcome;
 using Dynamite.Modules.Welcome.Helpers;
-using Dynamite.Modules.Economy.Commands;
-using Dynamite.Modules.Economy.Handlers;
-using Dynamite.Modules.Economy.Services;
 using Dynamite.Modules.Voice;
 using Dynamite.Modules.Voice.Services;
 using Dynamite.Shared;
@@ -154,57 +151,17 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddScoped<TicketService>();
         services.AddSingleton<TicketInteractionService>();
 
-        // Phase 10c — Economy v2
-        services.AddScoped<IWalletRepository, WalletRepository>();
-        services.AddScoped<IShopRepository, ShopRepository>();
-        services.AddScoped<IPondRepository, PondRepository>();
-        services.AddScoped<IUserProfileRepository, UserProfileRepository>();
-        services.AddScoped<WalletService>();
-        services.AddScoped<FishingService>();
-        services.AddScoped<ShopService>();
-        services.AddScoped<XpService>();
-        services.AddScoped<PondService>();
-        services.AddScoped<WeatherService>();
-        services.AddSingleton<EconomyEventHandler>();
-
-        // Economy v2.1 — Fish Bag, Special Pool, Leaderboard
-        services.AddScoped<IFishBagRepository, FishBagRepository>();
-        services.AddScoped<ISpecialPoolRepository, SpecialPoolRepository>();
-        services.AddScoped<ILeaderboardRepository, LeaderboardRepository>();
-        services.AddScoped<FishBagService>();
-        services.AddScoped<SpecialPoolService>();
-        services.AddHostedService<SpecialPoolScheduler>();
-        services.AddHostedService<LeaderboardHostedService>();
-
-        // Economy v2.2 — Activity Log, Snapshot/Backup, Miss/Escape
-        services.AddScoped<IFishingLogRepository, FishingLogRepository>();
-        services.AddScoped<IFishingSnapshotRepository, FishingSnapshotRepository>();
-        services.AddScoped<FishingSnapshotService>();
-        services.AddHostedService<FishingBackupScheduler>();
-
-        // Economy v2.3 — Trophy (Collector leaderboard) + Auto-Fish
-        services.AddScoped<IFishTrophyRepository, FishTrophyRepository>();
-        services.AddHostedService<AutoFishScheduler>();
-
-        // Economy v2.4 — Fish Encyclopedia (/fishing dex)
-        services.AddScoped<IFishEncyclopediaRepository, FishEncyclopediaRepository>();
-        services.AddScoped<FishEncyclopediaService>();
-
-        // Phase A — Channel System (Shop showcase, Invoice, Weather forecast, Guide)
-        services.AddScoped<ShopShowcaseService>();
-        services.AddScoped<InvoiceService>();
-        services.AddSingleton<WeatherForecastService>(); // Singleton vì WeatherChangeNotifier inject trực tiếp
-        services.AddScoped<GuideService>();
-
-        // Phase A — Weather Change Notifier (mention role Ngư Dân khi thời tiết đổi)
-        services.AddHostedService<WeatherChangeNotifier>();
-
         // Phase 5 — Temp Voice
         services.AddSingleton<TempVoiceService>();
         services.AddSingleton<TempVoiceEventHandler>();
 
         // ─── Phase E3 — Scheduled Restart ────────────────────────────────────────
         services.AddHostedService<ScheduledRestartService>();
+
+        // ─── Bot Sync Client (SignalR) ────────────────────────────────────────
+        services.AddSingleton<BotSyncClient>();
+        services.AddHostedService(sp => sp.GetRequiredService<BotSyncClient>());
+        services.AddSingleton<ISyncNotifier>(sp => sp.GetRequiredService<BotSyncClient>());
 
         services.AddHostedService<BotHostedService>();
     })

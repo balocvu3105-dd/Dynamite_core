@@ -89,29 +89,35 @@ public class WelcomeEventHandler
                 avatarUrl);
         }
 
-        try
-        {
-            if (imageStream is not null)
+            try
             {
-                await channel.SendFileAsync(
-                    imageStream,
-                    "welcome.png",
-                    embed: embed);
-                await imageStream.DisposeAsync();
-            }
-            else
-            {
-                // Fallback: gửi embed không có ảnh nếu generate thất bại
-                await channel.SendMessageAsync(embed: embed);
-            }
+                if (imageStream is not null)
+                {
+                    await channel.SendFileAsync(
+                        imageStream,
+                        "welcome.png",
+                        embed: embed);
+                    await imageStream.DisposeAsync();
+                }
+                else
+                {
+                    await channel.SendMessageAsync(embed: embed);
+                }
 
-            _logger.LogInformation("Welcome message sent for {User} in guild {GuildId}",
-                user.ToString(), user.Guild.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send welcome message for {User}", user.ToString());
-        }
+                _logger.LogInformation("Welcome message sent for {User} in guild {GuildId}", user.ToString(), user.Guild.Id);
+                
+                // Report success to reset error count
+                var circuitBreaker = scope.ServiceProvider.GetRequiredService<Dynamite.Application.Services.CircuitBreakerService>();
+                circuitBreaker.ReportSuccess(user.Guild.Id, "Welcome");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send welcome message for {User}", user.ToString());
+                
+                // Report error to Circuit Breaker
+                var circuitBreaker = scope.ServiceProvider.GetRequiredService<Dynamite.Application.Services.CircuitBreakerService>();
+                await circuitBreaker.ReportErrorAsync(user.Guild.Id, "Welcome", ex);
+            }
     }
 
     // Hỗ trợ placeholders: {user}, {server}, {count}

@@ -95,7 +95,8 @@ public sealed class ScheduledRestartService : BackgroundService
         var nextRestartUtc = TimeZoneInfo.ConvertTimeToUtc(
             DateTime.SpecifyKind(nextRestart, DateTimeKind.Unspecified), tz);
 
-        return nextRestartUtc - DateTime.UtcNow;
+        var delay = nextRestartUtc - DateTime.UtcNow;
+        return delay < TimeSpan.Zero ? TimeSpan.Zero : delay;
     }
 
     /// <summary>

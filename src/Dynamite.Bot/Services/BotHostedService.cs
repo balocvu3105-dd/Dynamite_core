@@ -14,7 +14,6 @@ using Dynamite.Modules.Logging.Helpers;
 using Dynamite.Modules.RoleManagement.Services;
 using Dynamite.Modules.Security;
 using Dynamite.Modules.Ticket.Interactions;
-using Dynamite.Modules.Economy.Handlers;
 using Dynamite.Modules.Voice;
 using Dynamite.Modules.Logging.Loggers;
 using Dynamite.Modules.Moderation.Services;
@@ -51,7 +50,6 @@ public class BotHostedService : IHostedService
         typeof(Dynamite.Modules.Setup.SetupModule).Assembly,
         typeof(Dynamite.Modules.Giveaway.Commands.GiveawayCommands).Assembly,
         typeof(Dynamite.Modules.Ticket.Commands.TicketCommands).Assembly,
-        typeof(Dynamite.Modules.Economy.Commands.EconomyCommands).Assembly,
         typeof(Dynamite.Modules.Voice.Commands.TempVoiceModule).Assembly,
     ];
 
@@ -284,35 +282,33 @@ public class BotHostedService : IHostedService
                 _services.GetRequiredService<WelcomeEventHandler>().Subscribe();
                 _services.GetRequiredService<SecurityEventHandler>().Subscribe();
                 _services.GetRequiredService<TempVoiceEventHandler>().Subscribe();
-                _services.GetRequiredService<EconomyEventHandler>().Subscribe();
                 _services.GetRequiredService<BlacklistEventHandler>().Subscribe();
+
+                // ── 2. Register slash commands FIRST — không phụ thuộc DB ──
+                // RegisterCommandsToGuildAsync(deleteMissing: true) đã overwrite toàn bộ
+                // command set — KHÔNG cần DeleteApplicationCommandsAsync trước đó
+#if DEBUG
+                var guild = _client.GetGuild(_settings.TestGuildId);
+                if (guild is null)
+                {
+                    _logger.LogError(
+                        "Test guild {GuildId} not found — kiểm tra TestGuildId hoặc bot chưa được invite",
+                        _settings.TestGuildId);
+                }
+                else
+                {
+                    await _interactions.RegisterCommandsToGuildAsync(_settings.TestGuildId, true);
+                    _logger.LogInformation(
+                        "Commands registered to test guild {GuildId} — {Count} slash commands, app {AppId}",
+                        _settings.TestGuildId, _interactions.SlashCommands.Count, _client.CurrentUser?.Id);
+                }
+#else
+                await _interactions.RegisterCommandsGloballyAsync(true);
+                _logger.LogInformation("Commands registered globally");
+#endif
 
                 _modulesLoaded = true;
             }
-
-            // ── 2. Register slash commands FIRST — không phụ thuộc DB ──
-            // RegisterCommandsToGuildAsync(deleteMissing: true) đã overwrite toàn bộ
-            // command set — KHÔNG cần DeleteApplicationCommandsAsync trước đó
-            // (delete trước tạo ra window không có lệnh nào + thêm 1 REST call có thể fail)
-#if DEBUG
-            var guild = _client.GetGuild(_settings.TestGuildId);
-            if (guild is null)
-            {
-                _logger.LogError(
-                    "Test guild {GuildId} not found — kiểm tra TestGuildId hoặc bot chưa được invite",
-                    _settings.TestGuildId);
-            }
-            else
-            {
-                await _interactions.RegisterCommandsToGuildAsync(_settings.TestGuildId, true);
-                _logger.LogInformation(
-                    "Commands registered to test guild {GuildId} — {Count} slash commands, app {AppId}",
-                    _settings.TestGuildId, _interactions.SlashCommands.Count, _client.CurrentUser?.Id);
-            }
-#else
-            await _interactions.RegisterCommandsGloballyAsync(true);
-            _logger.LogInformation("Commands registered globally");
-#endif
 
             // ── 3. DB-dependent work — cô lập để DB lỗi không giết command registration ──
             try

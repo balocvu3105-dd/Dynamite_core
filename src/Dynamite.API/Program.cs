@@ -101,6 +101,8 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddHttpClient<DiscordOAuthService>();
 builder.Services.AddScoped<GuildAuthorizationService>();
 
+builder.Services.AddScoped<Dynamite.Application.Interfaces.ISyncNotifier, SignalRSyncNotifier>();
+
 // Phase 9b
 builder.Services.AddScoped<GuildPresenceService>();
 
@@ -125,9 +127,9 @@ builder.Services.AddHealthChecks()
         tags: ["ready", "bot"]);
 
 builder.Services.AddTransient<Dynamite.Modules.Setup.Services.SmartSetupEngine>();
-builder.Services.AddScoped<Dynamite.Modules.Economy.Services.WalletService>();
 
-// ─── Controllers ─────────────────────────────────────────────────────────────
+// ─── Controllers & SignalR ───────────────────────────────────────────────────
+builder.Services.AddSignalR();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -213,6 +215,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapControllers();
+app.MapHub<Dynamite.API.Hubs.SyncHub>("/hubs/sync");
 
 app.Run();
 

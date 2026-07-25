@@ -10,7 +10,11 @@ const PAGE_TITLES: Record<string, string> = {
     security: 'Security',
 }
 
+import { useSync } from '@/hooks/useSync'
+
 export function DashboardLayout() {
+    useSync()
+
     // Read last segment of path for title
     const parts = window.location.pathname.split('/')
     const segment = parts[parts.length - 1] ?? ''
