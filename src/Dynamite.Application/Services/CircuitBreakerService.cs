@@ -1,34 +1,28 @@
 using System.Collections.Concurrent;
 using Dynamite.Application.Interfaces;
 using Dynamite.Core.Entities;
-using Dynamite.Core.Interfaces.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Dynamite.Application.Services;
 
 public class CircuitBreakerService
 {
-    private readonly IGuildConfigService _guildConfigService;
-    private readonly IGuildConfigRepository _guildConfigRepository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ISyncNotifier _syncNotifier;
     private readonly ILogger<CircuitBreakerService> _logger;
-    private readonly IServiceProvider _serviceProvider;
 
     // ConcurrentDictionary: <GuildId_ModuleName, ErrorCount>
     private readonly ConcurrentDictionary<string, int> _errorCounts = new();
 
     public CircuitBreakerService(
-        IGuildConfigService guildConfigService,
-        IGuildConfigRepository guildConfigRepository,
+        IServiceScopeFactory scopeFactory,
         ISyncNotifier syncNotifier,
-        ILogger<CircuitBreakerService> logger,
-        IServiceProvider serviceProvider)
+        ILogger<CircuitBreakerService> logger)
     {
-        _guildConfigService = guildConfigService;
-        _guildConfigRepository = guildConfigRepository;
+        _scopeFactory = scopeFactory;
         _syncNotifier = syncNotifier;
         _logger = logger;
-        _serviceProvider = serviceProvider;
     }
 
     public void ReportSuccess(ulong guildId, string moduleName)
@@ -60,7 +54,10 @@ public class CircuitBreakerService
     {
         try
         {
-            var config = await _guildConfigService.GetOrCreateConfigAsync(guildId, "Unknown");
+            using var scope = _scopeFactory.CreateScope();
+            var guildConfigService = scope.ServiceProvider.GetRequiredService<IGuildConfigService>();
+
+            var config = await guildConfigService.GetOrCreateConfigAsync(guildId, "Unknown");
             
             bool changed = false;
             switch (moduleName.ToLowerInvariant())
@@ -90,7 +87,7 @@ public class CircuitBreakerService
                 };
 
                 config.ModuleFaults.Add(fault);
-                await _guildConfigService.UpdateConfigAsync(config);
+                await guildConfigService.UpdateConfigAsync(config);
                 
                 // Notify via SignalR
                 await _syncNotifier.NotifyModuleFaultedAsync(guildId, moduleName, fault.Reason);
