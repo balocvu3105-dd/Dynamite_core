@@ -9,7 +9,6 @@ namespace Dynamite.Application.Services;
 public class CircuitBreakerService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ISyncNotifier _syncNotifier;
     private readonly ILogger<CircuitBreakerService> _logger;
 
     // ConcurrentDictionary: <GuildId_ModuleName, ErrorCount>
@@ -17,11 +16,9 @@ public class CircuitBreakerService
 
     public CircuitBreakerService(
         IServiceScopeFactory scopeFactory,
-        ISyncNotifier syncNotifier,
         ILogger<CircuitBreakerService> logger)
     {
         _scopeFactory = scopeFactory;
-        _syncNotifier = syncNotifier;
         _logger = logger;
     }
 
@@ -56,6 +53,7 @@ public class CircuitBreakerService
         {
             using var scope = _scopeFactory.CreateScope();
             var guildConfigService = scope.ServiceProvider.GetRequiredService<IGuildConfigService>();
+            var syncNotifier = scope.ServiceProvider.GetRequiredService<ISyncNotifier>();
 
             var config = await guildConfigService.GetOrCreateConfigAsync(guildId, "Unknown");
             
@@ -90,7 +88,7 @@ public class CircuitBreakerService
                 await guildConfigService.UpdateConfigAsync(config);
                 
                 // Notify via SignalR
-                await _syncNotifier.NotifyModuleFaultedAsync(guildId, moduleName, fault.Reason);
+                await syncNotifier.NotifyModuleFaultedAsync(guildId, moduleName, fault.Reason);
             }
         }
         catch (Exception ex)
