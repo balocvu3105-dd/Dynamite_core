@@ -7,7 +7,6 @@ import {
     Lock,
     ChevronLeft,
     Wand2,
-    Coins,
     Terminal,
     Ban,
 } from 'lucide-react'

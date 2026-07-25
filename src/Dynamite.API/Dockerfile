@@ -7,6 +7,7 @@ COPY src/Dynamite.Core/Dynamite.Core.csproj                   src/Dynamite.Core/
 COPY src/Dynamite.Application/Dynamite.Application.csproj     src/Dynamite.Application/
 COPY src/Dynamite.Infrastructure/Dynamite.Infrastructure.csproj src/Dynamite.Infrastructure/
 COPY src/Dynamite.API/Dynamite.API.csproj                     src/Dynamite.API/
+COPY src/Dynamite.Modules/Setup/Dynamite.Modules.Setup.csproj              src/Dynamite.Modules/Setup/
 
 RUN dotnet restore src/Dynamite.API/Dynamite.API.csproj
 
