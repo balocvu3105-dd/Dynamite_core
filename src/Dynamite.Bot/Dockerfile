@@ -14,7 +14,6 @@ COPY src/Dynamite.Modules/Logging/Dynamite.Modules.Logging.csproj          src/D
 COPY src/Dynamite.Modules/Security/Dynamite.Modules.Security.csproj        src/Dynamite.Modules/Security/
 COPY src/Dynamite.Modules.Giveaway/Dynamite.Modules.Giveaway.csproj        src/Dynamite.Modules.Giveaway/
 COPY src/Dynamite.Modules.Ticket/Dynamite.Modules.Ticket.csproj            src/Dynamite.Modules.Ticket/
-COPY src/Dynamite.Modules.Economy/Dynamite.Modules.Economy.csproj          src/Dynamite.Modules.Economy/
 COPY src/Dynamite.Bot/Dynamite.Bot.csproj                     src/Dynamite.Bot/
 
 RUN dotnet restore src/Dynamite.Bot/Dynamite.Bot.csproj
