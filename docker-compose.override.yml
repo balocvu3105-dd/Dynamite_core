@@ -4,8 +4,7 @@
 services:
 
   postgres:
-    ports:
-      - "5432:5432"
+    # No exposed ports to prevent external brute force attacks
 
   api:
     environment:
