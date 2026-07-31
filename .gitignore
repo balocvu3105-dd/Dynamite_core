@@ -493,3 +493,4 @@ appsettings.json
 logs/
 
 docker-compose.override.local.yml
+Dynamite_Roadmap.md

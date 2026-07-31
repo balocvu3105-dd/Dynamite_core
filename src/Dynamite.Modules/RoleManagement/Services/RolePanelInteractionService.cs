@@ -33,14 +33,34 @@ public class RolePanelInteractionService
         var customId = interaction.Data.CustomId;
         if (!customId.StartsWith(ButtonPrefix)) return;
 
-        var itemIdStr = customId[ButtonPrefix.Length..];
-        if (!Guid.TryParse(itemIdStr, out var itemId))
+        var dataStr = customId[ButtonPrefix.Length..];
+        var parts = dataStr.Split(':');
+        
+        Guid itemId;
+        ulong? fallbackRoleId = null;
+
+        if (parts.Length == 2)
+        {
+            Guid.TryParse(parts[0], out itemId);
+            if (ulong.TryParse(parts[1], out var r)) fallbackRoleId = r;
+        }
+        else if (parts.Length == 1)
+        {
+            Guid.TryParse(parts[0], out itemId);
+        }
+        else
         {
             _logger.LogWarning("Invalid button custom_id: {CustomId}", customId);
             return;
         }
 
-        await ToggleRoleAsync(interaction, itemId);
+        if (itemId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid button custom_id format: {CustomId}", customId);
+            return;
+        }
+
+        await ToggleRoleAsync(interaction, itemId, fallbackRoleId);
     }
 
     public async Task HandleSelectAsync(SocketMessageComponent interaction)
@@ -48,13 +68,21 @@ public class RolePanelInteractionService
         var customId = interaction.Data.CustomId;
         if (!customId.StartsWith(SelectPrefix)) return;
 
-        // Select menu trả về list các values được chọn
-        // Mỗi value = itemId của RolePanelItem
-        var selectedIds = interaction.Data.Values
-            .Select(v => Guid.TryParse(v, out var g) ? g : (Guid?)null)
-            .Where(g => g.HasValue)
-            .Select(g => g!.Value)
+        // Each value can be "itemId" or "panelId:roleId"
+        var selectedItems = interaction.Data.Values
+            .Select(v =>
+            {
+                var parts = v.Split(':');
+                if (parts.Length == 2 && Guid.TryParse(parts[0], out var pid) && ulong.TryParse(parts[1], out var rid))
+                    return (ItemId: pid, RoleId: (ulong?)rid);
+                if (parts.Length == 1 && Guid.TryParse(parts[0], out var id))
+                    return (ItemId: id, RoleId: (ulong?)null);
+                return (ItemId: Guid.Empty, RoleId: (ulong?)null);
+            })
+            .Where(x => x.ItemId != Guid.Empty)
             .ToList();
+            
+        var selectedIds = selectedItems.Select(x => x.ItemId).ToList();
 
         // Defer trước — lookup DB có thể mất thời gian
         await interaction.DeferAsync(ephemeral: true);
@@ -82,7 +110,8 @@ public class RolePanelInteractionService
         var panel = selectedIds.Count > 0
             ? await panelService.GetPanelByItemAsync(selectedIds[0])
             : null;
-        if (panel is null)
+        // Only show "Not Found" if we ALSO didn't parse any fallback role IDs
+        if (panel is null && selectedItems.All(x => !x.RoleId.HasValue))
         {
             await interaction.FollowupAsync(
                 embed: RoleManagementEmbeds.Error("Not Found",
@@ -92,19 +121,30 @@ public class RolePanelInteractionService
         }
 
         // Đếm số role thuộc panel này mà user ĐANG giữ — cập nhật dần trong vòng lặp
-        var heldCount = panel.Items.Count(i => guildUser.RoleIds.Contains(i.RoleId));
+        var heldCount = panel?.Items.Count(i => guildUser.RoleIds.Contains(i.RoleId)) ?? 0;
 
         var results = new List<string>();
 
         foreach (var itemId in selectedIds)
         {
-            var item = panel.Items.FirstOrDefault(i => i.Id == itemId);
-            if (item is null) continue;
+            var item = panel?.Items.FirstOrDefault(i => i.Id == itemId);
+            
+            // Tìm fallback role ID nếu có
+            var fallback = selectedItems.FirstOrDefault(x => x.ItemId == itemId).RoleId;
+            
+            var targetRoleId = item?.RoleId ?? fallback;
+            var targetLabel = item?.Label ?? (targetRoleId.HasValue ? guildUser.Guild.GetRole(targetRoleId.Value)?.Name ?? "Role" : "Unknown Role");
 
-            var role = guildUser.Guild.GetRole(item.RoleId);
+            if (!targetRoleId.HasValue)
+            {
+                results.Add($"✖ **{targetLabel}** failed — role not found.");
+                continue;
+            }
+
+            var role = guildUser.Guild.GetRole(targetRoleId.Value);
             if (role is null)
             {
-                results.Add($"✖ **{item.Label}** failed — role deleted on server.");
+                results.Add($"✖ **{targetLabel}** failed — role deleted on server.");
                 continue;
             }
 
@@ -116,31 +156,31 @@ public class RolePanelInteractionService
                 continue;
             }
 
-            var hasRole = guildUser.RoleIds.Contains(item.RoleId);
+            var hasRole = guildUser.RoleIds.Contains(targetRoleId.Value);
             try
             {
                 if (hasRole)
                 {
-                    await guildUser.RemoveRoleAsync(item.RoleId);
-                    heldCount--;
-                    results.Add($"✖ Removed **{item.Label}**");
+                    await guildUser.RemoveRoleAsync(targetRoleId.Value);
+                    if (panel != null) heldCount--;
+                    results.Add($"✖ Removed **{targetLabel}**");
                 }
-                else if (panel.MaxRoles > 0 && heldCount >= panel.MaxRoles)
+                else if (panel != null && panel.MaxRoles > 0 && heldCount >= panel.MaxRoles)
                 {
-                    results.Add($"⚠ **{item.Label}** skipped — limit is {panel.MaxRoles} role(s) from this panel. Remove one first.");
+                    results.Add($"⚠ **{targetLabel}** skipped — limit is {panel.MaxRoles} role(s) from this panel. Remove one first.");
                 }
                 else
                 {
-                    await guildUser.AddRoleAsync(item.RoleId);
-                    heldCount++;
-                    results.Add($"✔ Added **{item.Label}**");
+                    await guildUser.AddRoleAsync(targetRoleId.Value);
+                    if (panel != null) heldCount++;
+                    results.Add($"✔ Added **{targetLabel}**");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to toggle role {RoleId} for user {UserId}",
-                    item.RoleId, guildUser.Id);
-                results.Add($"✖ Failed to update **{item.Label}**");
+                    targetRoleId.Value, guildUser.Id);
+                results.Add($"✖ Failed to update **{targetLabel}**");
             }
         }
 
@@ -153,7 +193,7 @@ public class RolePanelInteractionService
             ephemeral: true);
     }
 
-    private async Task ToggleRoleAsync(SocketMessageComponent interaction, Guid itemId)
+    private async Task ToggleRoleAsync(SocketMessageComponent interaction, Guid itemId, ulong? fallbackRoleId = null)
     {
         await interaction.DeferAsync(ephemeral: true);
 
@@ -178,7 +218,10 @@ public class RolePanelInteractionService
         // Load panel kèm items — cần để enforce MaxRoles
         var panel = await panelService.GetPanelByItemAsync(itemId);
         var item = panel?.Items.FirstOrDefault(i => i.Id == itemId);
-        if (panel is null || item is null)
+        
+        var targetRoleId = item?.RoleId ?? fallbackRoleId;
+        
+        if (!targetRoleId.HasValue)
         {
             await interaction.FollowupAsync(
                 embed: RoleManagementEmbeds.Error("Not Found",
@@ -187,12 +230,14 @@ public class RolePanelInteractionService
             return;
         }
 
-        var role = guildUser.Guild.GetRole(item.RoleId);
+        var role = guildUser.Guild.GetRole(targetRoleId.Value);
+        var targetLabel = item?.Label ?? (role?.Name ?? "Unknown Role");
+        
         if (role is null)
         {
             await interaction.FollowupAsync(
                 embed: RoleManagementEmbeds.Error("Role Deleted",
-                    $"The role **{item.Label}** no longer exists on this server. Please ask an admin to update the panel."),
+                    $"The role **{targetLabel}** no longer exists on this server. Please ask an admin to update the panel."),
                 ephemeral: true);
             return;
         }
@@ -208,21 +253,21 @@ public class RolePanelInteractionService
             return;
         }
 
-        var hasRole = guildUser.RoleIds.Contains(item.RoleId);
+        var hasRole = guildUser.RoleIds.Contains(targetRoleId.Value);
 
         try
         {
             if (hasRole)
             {
-                await guildUser.RemoveRoleAsync(item.RoleId);
+                await guildUser.RemoveRoleAsync(targetRoleId.Value);
                 await interaction.FollowupAsync(
-                    embed: RoleManagementEmbeds.Warn("Role Removed", $"**{item.Label}** has been removed."),
+                    embed: RoleManagementEmbeds.Warn("Role Removed", $"**{targetLabel}** has been removed."),
                     ephemeral: true);
             }
             else
             {
                 // Enforce MaxRoles: đang giữ đủ số role từ panel này → từ chối
-                if (panel.MaxRoles > 0)
+                if (panel != null && panel.MaxRoles > 0)
                 {
                     var heldCount = panel.Items.Count(i => guildUser.RoleIds.Contains(i.RoleId));
                     if (heldCount >= panel.MaxRoles)
@@ -236,9 +281,9 @@ public class RolePanelInteractionService
                     }
                 }
 
-                await guildUser.AddRoleAsync(item.RoleId);
+                await guildUser.AddRoleAsync(targetRoleId.Value);
                 await interaction.FollowupAsync(
-                    embed: RoleManagementEmbeds.Success("Role Added", $"**{item.Label}** has been assigned."),
+                    embed: RoleManagementEmbeds.Success("Role Added", $"**{targetLabel}** has been assigned."),
                     ephemeral: true);
             }
         }
@@ -246,19 +291,19 @@ public class RolePanelInteractionService
         {
             await interaction.FollowupAsync(
                 embed: RoleManagementEmbeds.Error("Role Deleted",
-                    $"The role **{item.Label}** no longer exists on this server. Please ask an admin to update the panel."),
+                    $"The role **{targetLabel}** no longer exists on this server. Please ask an admin to update the panel."),
                 ephemeral: true);
         }
         catch (Discord.Net.HttpException ex) when (ex.DiscordCode == Discord.DiscordErrorCode.MissingPermissions)
         {
             await interaction.FollowupAsync(
                 embed: RoleManagementEmbeds.Error("Missing Permissions",
-                    $"The bot does not have permission (`Manage Roles`) or proper hierarchy to assign **{item.Label}**. Please ask an admin to fix bot roles."),
+                    $"The bot does not have permission (`Manage Roles`) or proper hierarchy to assign **{targetLabel}**. Please ask an admin to fix bot roles."),
                 ephemeral: true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error assigning role {RoleId} to user {UserId}", item.RoleId, guildUser.Id);
+            _logger.LogError(ex, "Error assigning role {RoleId} to user {UserId}", targetRoleId.Value, guildUser.Id);
             await interaction.FollowupAsync(
                 embed: RoleManagementEmbeds.Error("Error",
                     $"Failed to update role: {ex.Message}. Please contact an admin."),

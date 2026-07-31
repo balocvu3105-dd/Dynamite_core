@@ -48,7 +48,7 @@ public class RolePanelBuilder
             var emoji = ParseEmoji(item.Emoji);
             builder.WithButton(
                 label: item.Label,
-                customId: $"{RolePanelInteractionService.ButtonPrefix}{item.Id}",
+                customId: $"{RolePanelInteractionService.ButtonPrefix}{panel.Id}:{item.RoleId}",
                 style: ButtonStyle.Secondary,
                 emote: emoji);
         }
@@ -62,7 +62,7 @@ public class RolePanelBuilder
         {
             var option = new SelectMenuOptionBuilder()
                 .WithLabel(item.Label)
-                .WithValue(item.Id.ToString());
+                .WithValue($"{panel.Id}:{item.RoleId}");
 
             if (item.Description is not null)
                 option.WithDescription(item.Description);
