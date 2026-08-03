@@ -488,9 +488,6 @@ appsettings.json
 appsettings.json
 logs/
 
-# Secrets
-appsettings.json
-logs/
-
+docker-compose.override.yml
 docker-compose.override.local.yml
 Dynamite_Roadmap.md

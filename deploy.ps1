@@ -6,7 +6,7 @@
 
 # ── Cấu hình VPS ────────────────────────────────────────────
 $VPS_USER    = if ($env:VPS_USER) { $env:VPS_USER } else { "root" }
-$VPS_IP      = if ($env:VPS_IP) { $env:VPS_IP } else { "103.77.243.86" }
+$VPS_IP      = if ($env:VPS_IP) { $env:VPS_IP } else { "YOUR_VPS_IP" }
 # ────────────────────────────────────────────────────────────
 
 $REPO = $PSScriptRoot
